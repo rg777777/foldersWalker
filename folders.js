@@ -1,25 +1,38 @@
 const fs = require('fs')
 const Path = require('path')
+const Promise = require('bluebird')
 
-const callback = (aaa) => {
-  console.log('----'.repeat(20), aaa)
-  return aaa
+const fileCallback = (path) => {
+  return new Promise((resolve, reject) => {
+    console.log('+++'.repeat(1).repeat(5), path)
+    return resolve(path)
+  })
+}
+
+const folerCallback = (path) => {
+  return new Promise((resolve, reject) => {
+    console.log('FOLDER \n', fs.readdirSync(path))
+    return resolve(path)
+  })
 }
 
 const isDirectory = (path) => {
   return !!fs.statSync(Path.resolve(path)).isDirectory()
 }
 
-const walker = (dir, cb) => {
-  const files = fs.readdirSync(dir)
-  files.forEach(file => {
-    const curentPath = Path.join(dir, file)
-    if (isDirectory(curentPath)) {
-      return walker(curentPath, cb)
-    } else {
-      return cb(curentPath)
-    }
+const walker = (dir, dircb, filecb) => {
+  return new Promise((resolve, reject) => {
+    const files = fs.readdirSync(dir)
+    return dircb(dir).then(() => {
+      files.forEach(file => {
+        const curentPath = Path.join(dir, file)
+        if (isDirectory(curentPath)) {
+          return resolve(walker(curentPath, dircb, filecb))
+        } else {
+          return resolve(filecb(curentPath))
+        }
+      })
+    })
   })
 }
-
-console.log(walker('../../../Downloads/testfolder', callback))
+walker('../../../Downloads/testfolder', folerCallback, fileCallback)
