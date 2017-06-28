@@ -24,10 +24,10 @@ const walker = (dir, dircb, filecb) => {
   return new Promise((resolve, reject) => {
     const files = fs.readdirSync(dir)
     return dircb(dir).then(() => {
-      files.forEach(file => {
+      return Promise.map(files, file => {
         const curentPath = Path.join(dir, file)
         if (isDirectory(curentPath)) {
-          return resolve(walker(curentPath, dircb, filecb))
+          return walker(curentPath, dircb, filecb)
         } else {
           return resolve(filecb(curentPath))
         }
