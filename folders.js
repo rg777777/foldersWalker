@@ -1,38 +1,41 @@
-const fs = require('fs')
+const fs = require('fs-extra')
 const Path = require('path')
 const Promise = require('bluebird')
 
-const fileCallback = (path) => {
-  return new Promise((resolve, reject) => {
-    console.log('+++'.repeat(1).repeat(5), path)
-    return resolve(path)
-  })
+const fileCallback = (src, dest) => {
+  if (!fs.pathExistsSync(src)) {
+    return Promise.reject('File dont exist')
+  }
+  console.log('src, dest', `\n ${src} \n ${dest}`)
+  return fs.copy(src, dest)
 }
 
-const folerCallback = (path) => {
-  return new Promise((resolve, reject) => {
-    console.log('FOLDER \n', fs.readdirSync(path))
-    return resolve(path)
-  })
+const createFolder = (src, dest) => {
+  return fs.ensureDir(dest)
 }
 
 const isDirectory = (path) => {
   return !!fs.statSync(Path.resolve(path)).isDirectory()
 }
 
-const walker = (dir, dircb, filecb) => {
-  return new Promise((resolve, reject) => {
-    const files = fs.readdirSync(dir)
-    return dircb(dir).then(() => {
-      return Promise.map(files, file => {
-        const curentPath = Path.join(dir, file)
-        if (isDirectory(curentPath)) {
-          return walker(curentPath, dircb, filecb)
-        } else {
-          return resolve(filecb(curentPath))
-        }
-      })
+const walker = (srcDir, destDir, dircb, filecb) => {
+  return Promise.coroutine(function * () {
+    if (!fs.pathExistsSync(srcDir)) {
+      return Promise.reject('srcDir dont exist')
+    }
+    const files = fs.readdirSync(srcDir)
+    yield dircb(srcDir, destDir)
+    return Promise.map(files, file => {
+      const curentOldPath = Path.join(srcDir, file)
+      const curentNewPath = Path.join(destDir, file)
+      if (isDirectory(curentOldPath)) {
+        return walker(curentOldPath, curentNewPath, dircb, filecb)
+      } else {
+        return filecb(curentOldPath, curentNewPath)
+      }
     })
+  })().catch(err => {
+    console.log(err)
   })
 }
-walker('../../../Downloads/testfolder', folerCallback, fileCallback)
+walker('../../../Downloads/testfolder', '../../../Downloads/testfolder1', createFolder, fileCallback)
